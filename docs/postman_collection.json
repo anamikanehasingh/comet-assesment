@@ -1,0 +1,158 @@
+{
+  "info": {
+    "name": "Comet Ride API (v1)",
+    "description": "Multi-region ride-hailing MVP. HTTP under /api/v1. WebSocket demo: ws://{{host}}/api/v1/ws?token={{jwt}}&channel=ride:{{ride_id}} (or driver:{{driver_id}}).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "host", "value": "http://127.0.0.1:8000" },
+    { "key": "rider_token", "value": "" },
+    { "key": "driver_token", "value": "" },
+    { "key": "rider_id", "value": "" },
+    { "key": "driver_id", "value": "" },
+    { "key": "ride_id", "value": "" },
+    { "key": "trip_id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth — dev token (rider)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"subject\": \"{{rider_id}}\",\n  \"role\": \"rider\"\n}"
+        },
+        "url": "{{host}}/api/v1/auth/token"
+      }
+    },
+    {
+      "name": "Auth — dev token (driver)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"subject\": \"{{driver_id}}\",\n  \"role\": \"driver\"\n}"
+        },
+        "url": "{{host}}/api/v1/auth/token"
+      }
+    },
+    {
+      "name": "Driver — availability online",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"status\": \"online\"\n}" },
+        "url": "{{host}}/api/v1/drivers/{{driver_id}}/availability"
+      }
+    },
+    {
+      "name": "Driver — location",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"lat\": 40.73,\n  \"lng\": -73.99\n}" },
+        "url": "{{host}}/api/v1/drivers/{{driver_id}}/location"
+      }
+    },
+    {
+      "name": "Rides — create",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{rider_token}}" },
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Idempotency-Key", "value": "demo-ride-1" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pickup\": { \"lat\": 40.73, \"lng\": -73.99 },\n  \"destination\": { \"lat\": 40.78, \"lng\": -73.96 },\n  \"tier\": \"standard\",\n  \"surge_zone_id\": \"downtown\"\n}"
+        },
+        "url": "{{host}}/api/v1/rides"
+      }
+    },
+    {
+      "name": "Rides — get",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{rider_token}}" }],
+        "url": "{{host}}/api/v1/rides/{{ride_id}}"
+      }
+    },
+    {
+      "name": "Driver — pending offer",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{driver_token}}" }],
+        "url": "{{host}}/api/v1/drivers/{{driver_id}}/offers/pending"
+      }
+    },
+    {
+      "name": "Driver — accept",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"ride_id\": \"{{ride_id}}\",\n  \"token\": \"PASTE_OFFER_TOKEN\"\n}"
+        },
+        "url": "{{host}}/api/v1/drivers/{{driver_id}}/accept"
+      }
+    },
+    {
+      "name": "Trips — start",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{rider_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{host}}/api/v1/trips/{{trip_id}}/start"
+      }
+    },
+    {
+      "name": "Trips — end",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{rider_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{host}}/api/v1/trips/{{trip_id}}/end"
+      }
+    },
+    {
+      "name": "Payments — initiate",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{rider_token}}" },
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Idempotency-Key", "value": "pay-demo-1" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"trip_id\": \"{{trip_id}}\",\n  \"amount\": 12.34,\n  \"currency\": \"USD\"\n}"
+        },
+        "url": "{{host}}/api/v1/payments"
+      }
+    },
+    {
+      "name": "Pricing — estimate",
+      "request": {
+        "method": "GET",
+        "url": "{{host}}/api/v1/pricing/estimate?pickup_lat=40.73&pickup_lng=-73.99&dest_lat=40.78&dest_lng=-73.96&surge_zone_id=downtown"
+      }
+    }
+  ]
+}

@@ -1,0 +1,94 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: comet
+      POSTGRES_PASSWORD: comet
+      POSTGRES_DB: comet
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U comet -d comet"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://comet:comet@postgres:5432/comet
+      REDIS_URL: redis://redis:6379/0
+      APP_ENV: development
+      API_RELOAD: "false"
+    ports:
+      - "${COMPOSE_API_PUBLISH_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://comet:comet@postgres:5432/comet
+      REDIS_URL: redis://redis:6379/0
+      APP_ENV: development
+    command:
+      [
+        "celery",
+        "-A",
+        "app.workers.celery_app.celery_app",
+        "worker",
+        "-l",
+        "INFO",
+        "-Q",
+        "comet",
+      ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  checks:
+    profiles: ["checks"]
+    image: python:3.12-slim-bookworm
+    working_dir: /work
+    volumes:
+      - .:/work
+    environment:
+      DATABASE_URL: postgresql+asyncpg://comet:comet@postgres:5432/comet
+      REDIS_URL: redis://redis:6379/15
+      APP_ENV: local
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command:
+      - bash
+      - -lc
+      - |
+          set -euo pipefail
+          apt-get update -qq >/dev/null
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -qq gcc libpq-dev >/dev/null
+          pip install -q -U pip setuptools wheel >/dev/null
+          pip install -q -e '.[dev]'
+          ruff check .
+          ruff format --check .
+          pytest -q --cov=app --cov-report=term --cov-report=xml --cov-fail-under=65
